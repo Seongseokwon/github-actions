@@ -13,12 +13,9 @@ jobs:
             - name: Print greeting
               run: |
                 echo "Hello, ${{ github.actor }}!"
-                if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-                    if [ "${GITHUB_PULL_REQUEST_MERGED}" = "true" ]; then
-                        echo "This is a pull request and it has been merged"
-                    else
-                        echo "This is a pull request and it has not been merged"
-                    fi
+                if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ "${GITHUB_PULL_REQUEST_MERGED}" = "true" ]; then
+                    echo "This is a pull request and it has been merged"
+                    echo "Deploy State updated" >> $GITHUB_OUTPUT
                 else
                     echo "This is not a pull request"
                 fi
