@@ -10,9 +10,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Print greeting
-              run: 
+              run: |
                 echo "Hello, ${{ github.actor }}!"
-                if [ ${{ github.event_name }} == "pull_request" ]; then
+                if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
                     echo "This is a pull request"
                 else
                     echo "This is not a pull request"
