@@ -1,10 +1,21 @@
 name: Hello CI
 
-on: [push]
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
 
 jobs:
     say-hello:
         runs-on: ubuntu-latest
         steps:
             - name: Print greeting
-              run: echo "Hello, ${{ github.actor }}!"
+              run: 
+                echo "Hello, ${{ github.actor }}!"
+                if [ ${{ github.event_name }} == "pull_request" ]; then
+                    echo "This is a pull request"
+                    
+                else
+                    echo "This is not a pull request"
+                fi
