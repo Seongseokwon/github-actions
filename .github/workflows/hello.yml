@@ -10,6 +10,7 @@ on:
 env:
   GITHUB_EVENT_NAME: ${{ github.event_name }}
   GITHUB_PULL_REQUEST_MERGED: ${{ github.event.pull_request.merged }}
+  SHOULD_DEPLOY: ${{ false }}
 
 jobs:
   say-hello:
@@ -21,7 +22,9 @@ jobs:
           echo "Current Ref, ${{github.ref}}"
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ "${GITHUB_PULL_REQUEST_MERGED}" = "true" ]; then
               echo "This is a pull request and it has been merged"
-              echo "Deploy State updated" >> $GITHUB_OUTPUT
+              echo "should_deploy=true" >> $GITHUB_ENV
+              echo "Deploy State updated"
           else
               echo "This is not a pull request"
+              echo "should_deploy=false" >> $GITHUB_ENV
           fi
