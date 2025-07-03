@@ -1,0 +1,29 @@
+name: Bump Version
+
+on:
+  push:
+    branches: ["dev"]
+
+env:
+  GITHUB_EVENT_NAME: ${{ github.event_name }}
+  SHOULD_DEPLOY: ${{ false }}
+
+jobs:
+  bump_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: version_check
+        id: version_check
+        run: |
+          echo "Hello, ${{ github.actor }}!"
+          LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+      - name: bump_version
+        id: bump_version
+        run: |
+          echo "Hello, ${{ github.actor }}!"          
+          echo "Current Version, ${{ steps.version_check.outputs.LATEST_VERSION }}"

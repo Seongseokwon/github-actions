@@ -1,0 +1,37 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: |
+          [필수] 배포할 브랜치 선택(main, dev)
+        required: true
+        default: dev
+        type: choice
+        options:
+          - main
+          - dev
+
+      environment:
+        description: |
+          [필수] 배포할 환경 선택(production,development)
+        required: true
+        default: development
+        type: choice
+        options:
+          - production
+          - development
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{github.event.inputs.branch}}
+      - name: Echo 브랜치 이름
+        run: |
+          echo "현재 빌드 브랜치: ${{github.event.inputs.branch}}"
