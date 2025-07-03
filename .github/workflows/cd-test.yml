@@ -12,6 +12,7 @@ on:
         options:
           - main
           - dev
+
       environment:
         description: |
           [필수] 배포할 환경 선택(production,development)
@@ -31,3 +32,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{github.event.inputs.branch}}
+      - name: Echo 브랜치 이름
+        run: |
+          echo "현재 빌드 브랜치: ${{github.event.inputs.branch}}"
