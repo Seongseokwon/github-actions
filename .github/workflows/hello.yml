@@ -1,12 +1,8 @@
-name: Hello CI
+name: Bump Version
 
 on:
   push:
     branches: ["dev"]
-
-  pull_request:
-    branches: ["main"]
-    types: [closed]
 
 env:
   GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -26,22 +22,8 @@ jobs:
           LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
-      - name: merge_check
-        id: merge_check
+      - name: bump_version
+        id: bump_version
         run: |
-          echo "Hello, ${{ github.actor }}!"
-          echo "Current Ref, ${{github.ref}}"
+          echo "Hello, ${{ github.actor }}!"          
           echo "Current Version, ${{ steps.version_check.outputs.LATEST_VERSION }}"
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ "${GITHUB_PULL_REQUEST_MERGED}" = "true" ]; then
-              echo "This is a pull request and it has been merged"
-              echo "should_deploy=true" >> $GITHUB_ENV
-              echo "Deploy State updated"
-          else
-              echo "This is not a pull request"
-              echo "should_deploy=false" >> $GITHUB_ENV
-          fi
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
