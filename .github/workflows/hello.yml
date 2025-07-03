@@ -1,11 +1,9 @@
 name: Hello CI
 
 on:
-  push:
-    branches: ["main"]
   pull_request:
     branches: ["main"]
-    types: ["closed"]
+    types: [closed]
 
 env:
   GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -16,10 +14,17 @@ jobs:
   say-hello:
     runs-on: ubuntu-latest
     steps:
-      - name: Print greeting
+      - name: version_check
+        run: |
+          echo "Hello, ${{ github.actor }}!"
+          LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+      - name: merge_check
         run: |
           echo "Hello, ${{ github.actor }}!"
           echo "Current Ref, ${{github.ref}}"
+          echo "Current Version, ${{ steps.version_check.outputs.LATEST_VERSION }}"
           if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ "${GITHUB_PULL_REQUEST_MERGED}" = "true" ]; then
               echo "This is a pull request and it has been merged"
               echo "should_deploy=true" >> $GITHUB_ENV
