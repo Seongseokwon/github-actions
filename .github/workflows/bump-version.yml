@@ -27,4 +27,3 @@ jobs:
         run: |
           echo "Hello, ${{ github.actor }}!"          
           echo "Current Version, ${{ steps.version_check.outputs.LATEST_VERSION }}"
-          git log ${{github.event.before}}..${{github.event.after}} --pretty=format:%h %s"
