@@ -15,12 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: version_check
+        id: version_check
         run: |
           echo "Hello, ${{ github.actor }}!"
           LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
       - name: merge_check
+        id: merge_check
         run: |
           echo "Hello, ${{ github.actor }}!"
           echo "Current Ref, ${{github.ref}}"
