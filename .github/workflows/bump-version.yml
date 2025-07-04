@@ -11,11 +11,14 @@ env:
 jobs:
   bump_version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: version_check
         id: version_check
@@ -42,6 +45,10 @@ jobs:
           
           echo "New Version: $NEW_VERSION"
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Git 설정
+          git config --local user.email "pam9411@naver.com"
+          git config --local user.name "Seongseokwon"
           
           # 새 태그 생성
           git tag "$NEW_VERSION"
