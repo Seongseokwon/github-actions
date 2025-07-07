@@ -25,3 +25,9 @@ jobs:
       - name: Echo 브랜치 이름
         run: |
           echo "현재 빌드 브랜치: ${{github.event.inputs.branch}}"
+          current_branch=${{github.event.inputs.branch}}
+          echo "current_branch=$current_branch" >> $GITHUB_OUTPUT
+
+      - name: 환경설정
+        run: |
+          echo "현재 빌드 브랜치: $current_branch"
