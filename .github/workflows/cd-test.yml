@@ -12,6 +12,17 @@ on:
         options:
           - main
           - dev
+      version:
+        description: |
+          버전 선택(major, minor, patch)
+        default: patch
+        required: false
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: deepvue/dev/display-frontend
@@ -41,6 +52,8 @@ jobs:
         run: |
           echo "선택된 브랜치: ${{steps.env.outputs.current_branch}}"
           branch=${{steps.env.outputs.current_branch}}
+          LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
           if [ $branch = "main" ]; then
             echo "ECR_REPOSITORY='deepvue/prod/display-frontend'" >> $GITHUB_ENV
             echo "ECS_SERVICE='deepvue-display-prod-fe-service'" >> $GITHUB_ENV
