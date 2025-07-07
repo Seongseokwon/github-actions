@@ -60,12 +60,30 @@ jobs:
             echo "CONTAINER_NAME='deepvue-display-prod-fe-container'" >> $GITHUB_ENV
             echo "BUILD_ENV='production'" >> $GITHUB_ENV
           fi
-      - name: 버전 확인
+      - name: 버전
         id: version_check
         run: |
           LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
-          echo "LATEST_VERSION: ${{steps.version_check.outputs.LATEST_VERSION}}"
+
+      - name: 버전 확인
+        id: version
+        run: |
+          echo "버전 확인 ${{steps.version_check.outputs.LATEST_VERSION}}"
+
+          IFS='.' read -r MAJOR MINOR PATCH 
+          deploy_version_type=${{github.event.inputs.version}}
+
+          if [$deploy_version_type = "major"]; then
+            NEW_VERSION="$((MAJOR + 1)).0.0"
+          elif [$deploy_version_type = "minor"]; then
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+          elif [$deploy_version_type = "patch"]; then
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+          fi
+
+          # 나중 단계에서, NEW_VERSION을 활용해서 태그를 생성하는데, 기존버전과 동일하면 생성하지 않는다.
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: 환경확인
         run: |
@@ -76,3 +94,4 @@ jobs:
           echo "ECS_TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}"
           echo "CONTAINER_NAME: ${{ env.CONTAINER_NAME }}"
           echo "BUILD_ENV: ${{ env.BUILD_ENV }}"
+          echo "NEW_VERSION": ${{steps.version.outputs.NEW_VERSION}}
