@@ -22,12 +22,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{github.event.inputs.branch}}
-      - name: Echo 브랜치 이름
+
+      - name: 배포 브랜치 확인
+        id: env
         run: |
           echo "현재 빌드 브랜치: ${{github.event.inputs.branch}}"
           current_branch=${{github.event.inputs.branch}}
           echo "current_branch=$current_branch" >> $GITHUB_OUTPUT
 
-      - name: 환경설정
+      - name: 배포 환경설정
         run: |
-          echo "현재 빌드 브랜치: $current_branch"
+          echo "현재 빌드 브랜치: ${{steps.env.outputs.current_branch}}"
