@@ -52,8 +52,6 @@ jobs:
         run: |
           echo "선택된 브랜치: ${{steps.env.outputs.current_branch}}"
           branch=${{steps.env.outputs.current_branch}}
-          LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
-          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
           if [ $branch = "main" ]; then
             echo "ECR_REPOSITORY='deepvue/prod/display-frontend'" >> $GITHUB_ENV
             echo "ECS_SERVICE='deepvue-display-prod-fe-service'" >> $GITHUB_ENV
@@ -62,6 +60,12 @@ jobs:
             echo "CONTAINER_NAME='deepvue-display-prod-fe-container'" >> $GITHUB_ENV
             echo "BUILD_ENV='production'" >> $GITHUB_ENV
           fi
+      - name: 버전 확인
+        id: version_check
+        run: |
+          LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
+          echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
+          echo "LATEST_VERSION: ${{steps.version_check.outputs.LATEST_VERSION}}"
 
       - name: 환경확인
         run: |
