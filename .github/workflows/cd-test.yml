@@ -75,15 +75,16 @@ jobs:
 
           IFS='.' read -r MAJOR MINOR PATCH <<< ${{steps.version_check.outputs.LATEST_VERSION}}
           deploy_version_type=${{github.event.inputs.version}}
+          echo "deploy_version_type=$deploy_version_type"
           CREATE_NEW_TAG=false
 
-          if [$deploy_version_type = "major"]; then
+          if [ $deploy_version_type = "major" ]; then
             NEW_VERSION="$((MAJOR + 1)).0.0"
             CREATE_NEW_TAG=true
-          elif [$deploy_version_type = "minor"]; then
+          elif [ $deploy_version_type = "minor" ]; then
             NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
             CREATE_NEW_TAG=true
-          elif [$deploy_version_type = "patch"]; then
+          elif [ $deploy_version_type = "patch" ]; then
             NEW_VERSION="$MAJOR.$MINOR.$PATCH"
           fi
 
