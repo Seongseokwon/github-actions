@@ -12,6 +12,14 @@ on:
         options:
           - main
           - dev
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: deepvue/dev/display-frontend
+  ECS_SERVICE: deepvue-display-dev-fe-service
+  ECS_CLUSTER: deepvue-display-dev-cluster
+  ECS_TASK_DEFINITION: .github/workflows/deepvue-display-dev-fe-task-revision1.json
+  CONTAINER_NAME: deepvue-display-dev-fe-container
+  BUILD_ENV: development
 
 jobs:
   build-and-deploy:
@@ -26,10 +34,28 @@ jobs:
       - name: 배포 브랜치 확인
         id: env
         run: |
-          echo "현재 빌드 브랜치: ${{github.event.inputs.branch}}"
           current_branch=${{github.event.inputs.branch}}
           echo "current_branch=$current_branch" >> $GITHUB_OUTPUT
 
       - name: 배포 환경설정
         run: |
-          echo "현재 빌드 브랜치: ${{steps.env.outputs.current_branch}}"
+          echo "선택된 브랜치: ${{steps.env.outputs.current_branch}}"
+          branch=${{steps.env.outputs.current_branch}}
+          if [ $branch = "main" ]; then
+            echo "ECR_REPOSITORY='deepvue/prod/display-frontend'" >> $GITHUB_ENV
+            echo "ECS_SERVICE='deepvue-display-prod-fe-service'" >> $GITHUB_ENV
+            echo "ECS_CLUSTER='deepvue-display-prod-cluster'" >> $GITHUB_ENV
+            echo "ECS_TASK_DEFINITION='.github/workflows/deepvue-display-prod-fe-task-revision1.json'" >> $GITHUB_ENV
+            echo "CONTAINER_NAME='deepvue-display-prod-fe-container'" >> $GITHUB_ENV
+            echo "BUILD_ENV='production'" >> $GITHUB_ENV
+          fi
+
+      - name: 환경확인
+        run: |
+          echo "AWS_REGION: ${{ env.AWS_REGION }}"
+          echo "ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}"
+          echo "ECS_SERVICE: ${{ env.ECS_SERVICE }}"
+          echo "ECS_CLUSTER: ${{ env.ECS_CLUSTER }}"
+          echo "ECS_TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}"
+          echo "CONTAINER_NAME: ${{ env.CONTAINER_NAME }}"
+          echo "BUILD_ENV: ${{ env.BUILD_ENV }}"
