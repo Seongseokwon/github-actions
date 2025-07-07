@@ -71,7 +71,7 @@ jobs:
         run: |
           echo "버전 확인 ${{steps.version_check.outputs.LATEST_VERSION}}"
 
-          IFS='.' read -r MAJOR MINOR PATCH 
+          IFS='.' read -r MAJOR MINOR PATCH <<< ${{steps.version_check.outputs.LATEST_VERSION}}
           deploy_version_type=${{github.event.inputs.version}}
 
           if [$deploy_version_type = "major"]; then
@@ -79,7 +79,7 @@ jobs:
           elif [$deploy_version_type = "minor"]; then
             NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
           elif [$deploy_version_type = "patch"]; then
-            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+            NEW_VERSION="$MAJOR.$MINOR.PATCH"
           fi
 
           # 나중 단계에서, NEW_VERSION을 활용해서 태그를 생성하는데, 기존버전과 동일하면 생성하지 않는다.
