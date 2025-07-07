@@ -62,13 +62,13 @@ jobs:
             echo "CONTAINER_NAME='deepvue-display-prod-fe-container'" >> $GITHUB_ENV
             echo "BUILD_ENV='production'" >> $GITHUB_ENV
           fi
-      - name: 버전
+      - name: 버전 확인
         id: version_check
         run: |
           LATEST_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0")
           echo "LATEST_VERSION=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
-      - name: 버전 확인
+      - name: 버전 설정정
         id: version
         run: |
           echo "버전 확인 ${{steps.version_check.outputs.LATEST_VERSION}}"
@@ -102,3 +102,21 @@ jobs:
           echo "CONTAINER_NAME: ${{ env.CONTAINER_NAME }}"
           echo "BUILD_ENV: ${{ env.BUILD_ENV }}"
           echo "NEW_VERSION": ${{steps.version.outputs.NEW_VERSION}}
+          echo "CREATE_NEW_TAG": ${{steps.version.outputs.CREATE_NEW_TAG}}
+
+      - name: 버전 태그 생성
+        run: |
+          NEW_VERSION=${{steps.version.outputs.NEW_VERSION}}
+          IS_CREATE_TAG=${{steps.version.outputs.CREATE_NEW_TAG}}
+
+          if [ $IS_CREATE_TAG = "true" ]; then
+            echo "버전 태그 생성"
+            echo "NEW_VERSION": $NEW_VERSION
+            echo "CREATE_NEW_TAG": $NEW_VERSION
+
+            git config --local user.email "pam9411@naver.com"
+            git config --local user.name "Seongseokwon"
+
+            git tag "$NEW_VERSION"
+            git push origin "$NEW_VERSION"
+          fi
