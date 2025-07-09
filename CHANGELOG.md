@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/Seongseokwon/github-actions/compare/v1.1.0...v1.2.0) (2025-07-09)
+
+
+### Bug Fixes
+
+* UI 수정 ([368b5e8](https://github.com/Seongseokwon/github-actions/commit/368b5e8a0d187ef4e977c8d18137506812999fd7))
+
+
+### Features
+
+* api 추가 ([dc292f1](https://github.com/Seongseokwon/github-actions/commit/dc292f19c2c7e25c5c40340655b7014f365e111c))
+
 # [1.1.0](https://github.com/Seongseokwon/github-actions/compare/v1.0.0...v1.1.0) (2025-07-09)
 
 
