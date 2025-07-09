@@ -51,3 +51,7 @@ GitHub Actions에서 `Semantic Release and Deploy` 워크플로우를 수동으�
 ## 📝 커밋 컨벤션
 
 자세한 내용은 [COMMIT_CONVENTION.md](./COMMIT_CONVENTION.md)를 참조하세요.
+
+## 테스트
+
+테스트 해보자
