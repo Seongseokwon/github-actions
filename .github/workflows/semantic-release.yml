@@ -1,0 +1,107 @@
+name: Semantic Release and Deploy
+
+on:
+  push:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "배포할 브랜치 선택"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - main
+          - dev
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: deepvue/dev/display-frontend
+  ECS_SERVICE: deepvue-display-dev-fe-service
+  ECS_CLUSTER: deepvue-display-dev-cluster
+  ECS_TASK_DEFINITION: .github/workflows/deepvue-display-dev-fe-task-revision1.json
+  CONTAINER_NAME: deepvue-display-dev-fe-container
+  BUILD_ENV: development
+
+jobs:
+  semantic-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+        run: npx semantic-release
+
+  deploy:
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release_published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: 배포 환경설정
+        id: env-setup
+        run: |
+          branch="${{ github.event.inputs.branch || github.ref_name }}"
+          echo "배포 브랜치: $branch"
+
+          if [ "$branch" = "main" ]; then
+            echo "ECR_REPOSITORY=deepvue/prod/display-frontend" >> $GITHUB_ENV
+            echo "ECS_SERVICE=deepvue-display-prod-fe-service" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=deepvue-display-prod-cluster" >> $GITHUB_ENV
+            echo "ECS_TASK_DEFINITION=.github/workflows/deepvue-display-prod-fe-task-revision1.json" >> $GITHUB_ENV
+            echo "CONTAINER_NAME=deepvue-display-prod-fe-container" >> $GITHUB_ENV
+            echo "BUILD_ENV=production" >> $GITHUB_ENV
+          else
+            echo "ECR_REPOSITORY=deepvue/dev/display-frontend" >> $GITHUB_ENV
+            echo "ECS_SERVICE=deepvue-display-dev-fe-service" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=deepvue-display-dev-cluster" >> $GITHUB_ENV
+            echo "ECS_TASK_DEFINITION=.github/workflows/deepvue-display-dev-fe-task-revision1.json" >> $GITHUB_ENV
+            echo "CONTAINER_NAME=deepvue-display-dev-fe-container" >> $GITHUB_ENV
+            echo "BUILD_ENV=development" >> $GITHUB_ENV
+          fi
+
+      - name: 환경확인
+        run: |
+          echo "AWS_REGION: ${{ env.AWS_REGION }}"
+          echo "ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}"
+          echo "ECS_SERVICE: ${{ env.ECS_SERVICE }}"
+          echo "ECS_CLUSTER: ${{ env.ECS_CLUSTER }}"
+          echo "ECS_TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}"
+          echo "CONTAINER_NAME: ${{ env.CONTAINER_NAME }}"
+          echo "BUILD_ENV: ${{ env.BUILD_ENV }}"
+
+      # 여기에 AWS ECS 배포 로직을 추가할 수 있습니다
+      - name: Deploy to AWS ECS
+        run: |
+          echo "AWS ECS 배포 로직이 여기에 구현됩니다"
+          echo "현재 버전: ${{ needs.semantic-release.outputs.new_release_version }}"
+          echo "배포 환경: ${{ env.BUILD_ENV }}"
