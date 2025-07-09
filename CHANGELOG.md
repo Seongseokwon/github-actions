@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/Seongseokwon/github-actions/compare/v1.0.0...v1.1.0) (2025-07-09)
+
+
+### Features
+
+* UI 수정 ([2888a54](https://github.com/Seongseokwon/github-actions/commit/2888a54f7c221266275651ddcdad1aa2e71e2540))
+
 # 1.0.0 (2025-07-09)
 
 
