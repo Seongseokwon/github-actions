@@ -22,6 +22,11 @@ on:
           - major
           - minor
           - patch
+      user_email:
+        description: |
+          Git 커밋에 사용할 이메일 주소 (선택사항)
+        required: false
+        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.inputs.branch }}
   cancel-in-progress: true
@@ -56,6 +61,19 @@ jobs:
           echo "github.event_path: ${{ github.event_path }}"
           echo "github.event.inputs.branch: ${{ github.event.inputs.branch }}"
           echo "github.event.inputs.version: ${{ github.event.inputs.version }}"
+
+          # 사용자 정보로 Git config 설정
+          if [ -n "${{ github.event.inputs.user_email }}" ]; then
+            USER_EMAIL="${{ github.event.inputs.user_email }}"
+          else
+            USER_EMAIL="${{ github.actor }}@users.noreply.github.com"
+          fi
+
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "$USER_EMAIL"
+
+          echo "Git user.name: ${{ github.actor }}"
+          echo "Git user.email: $USER_EMAIL"
 
   deploy:
     name: Deploy
