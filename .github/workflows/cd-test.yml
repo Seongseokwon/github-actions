@@ -22,6 +22,12 @@ on:
           - major
           - minor
           - patch
+      memo:
+        description: |
+          자유 입력
+        default: ''
+        required: false
+        type: string
 
 env:
   AWS_REGION: ap-northeast-2
