@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/Seongseokwon/github-actions/compare/v1.2.0...v1.3.0) (2025-07-09)
+
+
+### Features
+
+* Typescript  준비 ([acc0b13](https://github.com/Seongseokwon/github-actions/commit/acc0b13838221cdc76463f1929da92d39d220568))
+
 # [1.2.0](https://github.com/Seongseokwon/github-actions/compare/v1.1.0...v1.2.0) (2025-07-09)
 
 
