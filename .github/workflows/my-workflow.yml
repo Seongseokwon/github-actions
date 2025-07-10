@@ -75,6 +75,8 @@ jobs:
           echo "Git user.name: ${{ github.actor }}"
           echo "Git user.email: $USER_EMAIL"
 
+          git tag -a "v${{ inputs.version }}" -m "Bump version to ${{ inputs.version }}"
+          git push origin "v${{ inputs.version }}"
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
