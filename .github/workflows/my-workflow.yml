@@ -55,8 +55,6 @@ jobs:
       - name: Bump Version
         run: |
           echo "Bump Version"
-          npm version ${{ inputs.version }}
-          git push origin main
 
   deploy:
     name: Deploy
