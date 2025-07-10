@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: |
+          [필수] 배포할 환경 선택 (main, dev)
+        required: true
+        default: dev
+        type: choice
+        options:
+          - main
+          - dev
+      version:
+        description: |
+          버전 선택 (major, minor, patch)
+        default: patch
+        required: false
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: ''
+  ECS_SERVICE: ''
+  ECS_CLUSTER: ''
+  ECS_TASK_DEFINITION: ''
+  CONTAINER_NAME: ''
+
+permissions:
+  actions: write
+  contents: write
+  
+jobs:
+  bump-version:
+    name: Version Bump
+    runs-on: ubuntu-latest
+    outputs: 
+      result: ${{ steps.set-version.outputs.version }}
+    steps:
+      - id: set-version
+        run: |
+          echo "version=11" >> "$GITHUB_OUTPUT"
+  
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: bump-version
+          
+  
