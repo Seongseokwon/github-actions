@@ -47,11 +47,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: git config setting
-        run: |
-          git config --global user.name pam9411@naver.com
-          git config --global user.email Seongseokwon
-
       - name: Bump Version
         run: |
           echo "Bump Version"
