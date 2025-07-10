@@ -39,12 +39,12 @@ jobs:
   bump-version:
     name: Version Bump
     runs-on: ubuntu-latest
-    outputs: 
-      result: ${{ steps.set-version.outputs.version }}
     steps:
       - id: set-version
         run: |
           echo "version=11" >> "$GITHUB_OUTPUT"
+    outputs: 
+      result: ${{ steps.set-version.outputs.version }}
   
   deploy:
     name: Deploy to ECS
