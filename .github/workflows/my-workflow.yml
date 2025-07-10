@@ -41,6 +41,10 @@ jobs:
     name: Bump Version
     runs-on: ubuntu-latest
     steps:
+      - name: git config setting
+        run: |
+          git config --global user.name ${{ env.GIT_AUTHOR_NAME }}
+          git config --global user.email ${{ env.GIT_AUTHOR_EMAIL }}
       - name: Checkout
         uses: actions/checkout@v4
         with:
