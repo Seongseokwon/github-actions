@@ -1,35 +1,46 @@
-name: Semantic Release and Deploy
+name: Deploy
 
 on:
-  push:
-    branches: ["main", "dev"]
   workflow_dispatch:
     inputs:
       branch:
-        description: "배포할 브랜치 선택"
+        description: |
+          [필수] 배포할 환경 선택 (main, dev)
         required: true
         default: dev
         type: choice
         options:
           - main
           - dev
+      version:
+        description: |
+          버전 선택 (major, minor, patch)
+        default: patch
+        required: false
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.branch }}
+  cancel-in-progress: true
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: deepvue/dev/display-frontend
-  ECS_SERVICE: deepvue-display-dev-fe-service
-  ECS_CLUSTER: deepvue-display-dev-cluster
-  ECS_TASK_DEFINITION: .github/workflows/deepvue-display-dev-fe-task-revision1.json
-  CONTAINER_NAME: deepvue-display-dev-fe-container
-  BUILD_ENV: development
+
+permissions:
+  actions: write
+  contents: write
 
 jobs:
-  semantic-release:
+  bump-version:
+    name: Version Bump
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+    outputs:
+      new-version: ${{ steps.bump.outputs.new-version }}
+      release-tag: ${{ steps.bump.outputs.release-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,71 +48,213 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24.0.2"
-          cache: "npm"
+      - name: Get latest tag version
+        id: latest-tag
+        run: |
+          BRANCH="${{ github.event.inputs.branch }}"
+          VERSION_TYPE="${{ github.event.inputs.version }}"
 
-      - name: Install dependencies
-        run: npm ci
+          if [ "$BRANCH" = "main" ]; then
+            TAG_PATTERN="v[0-9]*\\.[0-9]*\\.[0-9]*"
+            PREFIX="v"
+          else
+            TAG_PATTERN="dev-v[0-9]*\\.[0-9]*\\.[0-9]*"
+            PREFIX="dev-v"
+          fi
 
-      - name: Build
-        run: npm run build
+          # 최신 태그 찾기
+          LATEST_TAG=$(git tag --list "$TAG_PATTERN" --sort=-version:refname | head -n 1)
 
-      - name: Semantic Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_ENV: production
-        run: npx semantic-release
+          if [ -z "$LATEST_TAG" ]; then
+            # 태그가 없으면 v0.0.0을 기본값으로 사용
+            LATEST_VERSION="0.0.0"
+            echo "latest-tag-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "tag-prefix=$PREFIX" >> $GITHUB_OUTPUT
+            echo "no-existing-tag=true" >> $GITHUB_OUTPUT
+          else
+            # 태그에서 버전 추출
+            LATEST_VERSION=$(echo "$LATEST_TAG" | sed "s/^$PREFIX//")
+            echo "latest-tag-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "tag-prefix=$PREFIX" >> $GITHUB_OUTPUT
+            echo "no-existing-tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version
+        id: bump
+        run: |
+          LATEST_VERSION="${{ steps.latest-tag.outputs.latest-tag-version }}"
+          VERSION_TYPE="${{ github.event.inputs.version }}"
+          PREFIX="${{ steps.latest-tag.outputs.tag-prefix }}"
+
+          IFS='.' read -r major minor patch <<< "$LATEST_VERSION"
+
+          # 숫자가 아닌 경우 0으로 초기화
+          if ! [[ "$major" =~ ^[0-9]+$ ]]; then major=0; fi
+          if ! [[ "$minor" =~ ^[0-9]+$ ]]; then minor=0; fi
+          if ! [[ "$patch" =~ ^[0-9]+$ ]]; then patch=0; fi
+
+          case $VERSION_TYPE in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          NEW_VERSION="${major}.${minor}.${patch}"
+          RELEASE_TAG="${PREFIX}${NEW_VERSION}"
+
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "release-tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "previous-version=$LATEST_VERSION" >> $GITHUB_OUTPUT
 
   deploy:
-    needs: semantic-release
-    if: needs.semantic-release.outputs.new_release_published == 'true'
+    name: Deploy to ECS
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    needs: bump-version
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.DEEPVUE_DEPLOY_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEEPVUE_DEPLOY_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.version_bump.outputs.new_version }}
+        run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ env.ECS_TASK_DEFINITION }}
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Check ECS service deployment configuration
+        run: |
+          echo "=== ECS Service Deployment Configuration ==="
+          aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --query 'services[0].{ServiceName:serviceName,DeploymentConfiguration:deploymentConfiguration,NetworkConfiguration:networkConfiguration,LoadBalancers:loadBalancers,HealthCheckGracePeriodSeconds:healthCheckGracePeriodSeconds}'
+
+          echo "=== Current Deployments ==="
+          aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --query 'services[0].deployments[*].{Id:id,Status:status,RunningCount:runningCount,DesiredCount:desiredCount,PendingCount:pendingCount,FailedTasks:failedTasks}'
+
+      - name: Check ECS service status before deployment
+        run: |
+          echo "Checking ECS service status before deployment..."
+          aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --query 'services[0].{ServiceName:serviceName,Status:status,RunningCount:runningCount,DesiredCount:desiredCount,PendingCount:pendingCount}'
+
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: false
+
+      - name: Wait for deployment to complete
+        run: |
+          echo "Waiting for deployment to complete."
+          aws ecs wait services-stable \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --cli-read-timeout 600 \
+              --cli-connect-timeout 60
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          aws ecs describe-services \
+              --cluster ${{ env.ECS_CLUSTER }} \
+              --services ${{ env.ECS_SERVICE }} \
+              --query 'services[0].{ServiceName:serviceName,Status:status,RunningCount:runningCount,DesiredCount:desiredCount,PendingCount:pendingCount,Deployments:deployments[*].{Status:status,RunningCount:runningCount,DesiredCount:desiredCount}}'
+
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: bump-version
+    if: success()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 배포 환경설정
-        id: env-setup
+      - name: Create release tag
         run: |
-          branch="${{ github.event.inputs.branch || github.ref_name }}"
-          echo "배포 브랜치: $branch"
+          RELEASE_TAG="${{ needs.bump-version.outputs.release-tag }}"
+          NEW_VERSION="${{ needs.bump-version.outputs.new-version }}"
 
-          if [ "$branch" = "main" ]; then
-            echo "ECR_REPOSITORY=deepvue/prod/display-frontend" >> $GITHUB_ENV
-            echo "ECS_SERVICE=deepvue-display-prod-fe-service" >> $GITHUB_ENV
-            echo "ECS_CLUSTER=deepvue-display-prod-cluster" >> $GITHUB_ENV
-            echo "ECS_TASK_DEFINITION=.github/workflows/deepvue-display-prod-fe-task-revision1.json" >> $GITHUB_ENV
-            echo "CONTAINER_NAME=deepvue-display-prod-fe-container" >> $GITHUB_ENV
-            echo "BUILD_ENV=production" >> $GITHUB_ENV
-          else
-            echo "ECR_REPOSITORY=deepvue/dev/display-frontend" >> $GITHUB_ENV
-            echo "ECS_SERVICE=deepvue-display-dev-fe-service" >> $GITHUB_ENV
-            echo "ECS_CLUSTER=deepvue-display-dev-cluster" >> $GITHUB_ENV
-            echo "ECS_TASK_DEFINITION=.github/workflows/deepvue-display-dev-fe-task-revision1.json" >> $GITHUB_ENV
-            echo "CONTAINER_NAME=deepvue-display-dev-fe-container" >> $GITHUB_ENV
-            echo "BUILD_ENV=development" >> $GITHUB_ENV
-          fi
+          # 태그 메시지 생성
+          TAG_MESSAGE="Release $RELEASE_TAG - Deployed to ${{ github.event.inputs.branch == 'main' && 'production' || 'development' }}"
 
-      - name: 환경확인
+          git tag -a "$RELEASE_TAG" -m "$TAG_MESSAGE"
+          git push origin "$RELEASE_TAG"
+
+          echo "Created release tag: $RELEASE_TAG"
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.prepare-version.outputs.release-tag }}
+          release_name: Release ${{ needs.prepare-version.outputs.release-tag }}
+          body: |
+            ## 🚀 Release ${{ needs.prepare-version.outputs.release-tag }}
+
+            **Environment**: ${{ github.event.inputs.branch == 'main' && 'Production' || 'Development' }}
+            **Version**: ${{ needs.prepare-version.outputs.new-version }}
+            **Deployed**: $(date)
+
+            ### Changes
+            - Version bump from previous version
+            - Successfully deployed to ECS
+
+            ### Deployment Info
+            - **ECS Service**: ${{ env.ECS_SERVICE }}
+            - **ECS Cluster**: ${{ env.ECS_CLUSTER }}
+            - **Branch**: ${{ github.event.inputs.branch }}
+          draft: false
+          prerelease: ${{ github.event.inputs.branch != 'main' }}
+
+      - name: Release Summary
         run: |
-          echo "AWS_REGION: ${{ env.AWS_REGION }}"
-          echo "ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}"
-          echo "ECS_SERVICE: ${{ env.ECS_SERVICE }}"
-          echo "ECS_CLUSTER: ${{ env.ECS_CLUSTER }}"
-          echo "ECS_TASK_DEFINITION: ${{ env.ECS_TASK_DEFINITION }}"
-          echo "CONTAINER_NAME: ${{ env.CONTAINER_NAME }}"
-          echo "BUILD_ENV: ${{ env.BUILD_ENV }}"
-
-      # 여기에 AWS ECS 배포 로직을 추가할 수 있습니다
-      - name: Deploy to AWS ECS
-        run: |
-          echo "AWS ECS 배포 로직이 여기에 구현됩니다"
-          echo "현재 버전: ${{ needs.semantic-release.outputs.new_release_version }}"
-          echo "배포 환경: ${{ env.BUILD_ENV }}"
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release Tag**: ${{ needs.prepare-version.outputs.release-tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.prepare-version.outputs.new-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.branch == 'main' && 'Production' || 'Development' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployment Status**: ✅ Successfully deployed to ECS" >> $GITHUB_STEP_SUMMARY
